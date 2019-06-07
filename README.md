@@ -12,6 +12,12 @@ pip install thready
 
 # Change Log
 
+[????????????????????]
+Fixes:
+* Modified login page to accomodate updates to Linkedin's site
+* Modified profile image location parsing to accomodate updates to Linkedin's site
+* Added argument support for the remaining input options
+
 [v0.1 BETA 12-07-2017]
 Additions:
 * UI Updates

@@ -2,6 +2,8 @@
 # Scrapes LinkedIn without using LinkedIn API
 # Original scraper by @DisK0nn3cT (https://github.com/DisK0nn3cT/linkedin-gatherer)
 # Modified by @vysecurity
+# Modified-modified by stumblebot
+# Yo dawg, I heard you like forks
 # - Additions:
 # --- UI Updates
 # --- Constrain to company filters
@@ -33,19 +35,26 @@ sys.setdefaultencoding('utf-8')
 parser = argparse.ArgumentParser(description='Discovery LinkedIn')
 parser.add_argument('-u', '--keywords', help='Keywords to search')
 parser.add_argument('-o', '--output', help='Output file (do not include extentions)')
+parser.add_argument('-i', '--id', help='Company ID')
+parser.add_argument('-d', '--domain', help='Email Domain')
+parser.add_argument('-p', '--prefix', help='Email prefix format. Options include; auto,full,firstlast,firstmlast,flast,first.last,fmlast,lastfirst')
 args = parser.parse_args()
+print 
 api_key = "" # Hunter API key
-username = "" 	# enter username here
-password = ""	# enter password here
+username = ""    # enter username here
+password = ""       # enter password here
+
 
 def login():
 	cookie_filename = "cookies.txt"
 	cookiejar = cookielib.MozillaCookieJar(cookie_filename)
 	opener = urllib2.build_opener(urllib2.HTTPRedirectHandler(),urllib2.HTTPHandler(debuglevel=0),urllib2.HTTPSHandler(debuglevel=0),urllib2.HTTPCookieProcessor(cookiejar))
-	page = loadPage(opener, "https://www.linkedin.com/")
+	##page = loadPage(opener, "https://www.linkedin.com/")
+	page = loadPage(opener, "https://www.linkedin.com/uas/login")
 	parse = BeautifulSoup(page, "html.parser")
 
-	csrf = parse.find(id="loginCsrfParam-login")['value']
+	##csrf = parse.find(id="loginCsrfParam-login")['value']
+	csrf = parse.find("input", {"name": "loginCsrfParam"})['value']
 	
 	login_data = urllib.urlencode({'session_key': username, 'session_password': password, 'loginCsrfParam': csrf})
 	page = loadPage(opener,"https://www.linkedin.com/uas/login-submit", login_data)
@@ -209,9 +218,14 @@ def get_search():
                 data_occupation = c['hitInfo']['com.linkedin.voyager.search.SearchProfile']['miniProfile']['occupation']
                 data_location = c['hitInfo']['com.linkedin.voyager.search.SearchProfile']['location']
                 try:
-                    data_picture = "https://media.licdn.com/mpr/mpr/shrinknp_400_400%s" % c['hitInfo']['com.linkedin.voyager.search.SearchProfile']['miniProfile']['picture']['com.linkedin.voyager.common.MediaProcessorImage']['id']
+                    data_rootUrl = c['hitInfo']['com.linkedin.voyager.search.SearchProfile']['miniProfile']['picture']['com.linkedin.common.VectorImage']['rootUrl']
                 except:
-                    print "[*] No picture found for %s %s, %s" % (data_firstname, data_lastname, data_occupation)
+                    print("[*]"),
+                    
+                try:
+                    data_picture = data_rootUrl+c['hitInfo']['com.linkedin.voyager.search.SearchProfile']['miniProfile']['picture']['com.linkedin.common.VectorImage']['artifacts'][2]['fileIdentifyingUrlPathSegment']
+                except:
+                    #print "[*] No picture found for %s %s, %s" % (data_firstname, data_lastname, data_occupation)
                     data_picture = ""
 
                 # incase the last name is multi part, we will split it down
@@ -275,13 +289,13 @@ def get_search():
                 
                 csv.append('"%s","%s","%s","%s","%s", "%s"' % (data_firstname, data_lastname, name, email, data_occupation, data_location.replace(",",";")))
                 foot = "</table></center>"
-                f = open('{}.html'.format(outfile), 'wb')
+                f = open('{}.html'.format(outfile), 'w')
                 f.write(css)
                 f.write(header)
                 f.write(body)
                 f.write(foot)
                 f.close()
-                f = open('{}.csv'.format(outfile), 'wb')
+                f = open('{}.csv'.format(outfile), 'w')
                 f.writelines('\n'.join(csv))
                 f.close()
             else:
@@ -294,6 +308,7 @@ def banner():
 
             print "\033[1;31m%s\033[0;0m" % data
             print "\033[1;34mProviding you with Linkedin Intelligence"
+            print "\033[1;34mForked: stumblebot"
             print "\033[1;32mAuthor: Vincent Yiu (@vysec, @vysecurity)\033[0;0m"
             print "\033[1;32mOriginal version by @DisK0nn3cT\033[0;0m"
 
@@ -314,98 +329,113 @@ if __name__ == '__main__':
     banner()
     # Prompt user for data variables
     search = args.keywords if args.keywords!=None else raw_input("[*] Enter search Keywords (use quotes for more percise results)\n")
-    print 
+    print "Search string is " + search 
     outfile = args.output if args.output!=None else raw_input("[*] Enter filename for output (exclude file extension)\n")
-    print 
-    while True:
-        bCompany = raw_input("[*] Filter by Company? (Y/N): \n")
-        if bCompany.lower() == "y" or bCompany.lower() == "n":
-            break
-        else:
-            print "[!] Incorrect choice"
-
-    if bCompany.lower() == "y":
-        bCompany = True
-    else:
-        bCompany = False
-
-    bAuto = True
-    bSpecific = 0
-    prefix = ""
-    suffix = ""
-
-    print
-
-    if bCompany:
-	    while True:
-	        bSpecific = raw_input("[*] Specify a Company ID (Provide ID or leave blank to automate): \n")
-	        if bSpecific != "":
-	            bAuto = False
-	            if bSpecific != 0:
-	                try:
-	                    int(bSpecific)
-	                    break
-	                except:
-	                    print "[!] Incorrect choice, the ID either has to be a number or blank"
-	                
-	            else:
-	                print "[!] Incorrect choice, the ID either has to be a number or blank"
-	        else:
-	            bAuto = True
-	            break
-
-    print
+    print "Output file name is " + outfile
 
     
-    while True:
-        suffix = raw_input("[*] Enter e-mail domain suffix (eg. contoso.com): \n")
-        suffix = suffix.lower()
-        if "." in suffix:
-            break
-        else:
-            print "[!] Incorrect e-mail? There's no dot"
-
-    print
-
-    while True:
-        prefix = raw_input("[*] Select a prefix for e-mail generation (auto,full,firstlast,firstmlast,flast,first.last,fmlast,lastfirst): \n")
-        prefix = prefix.lower()
-        print
-        if prefix == "full" or prefix == "firstlast" or prefix == "firstmlast" or prefix == "flast" or prefix =="first" or prefix == "first.last" or prefix == "fmlast" or prefix == "lastfirst":
-            break
-        elif prefix == "auto":
-            #if auto prefix then we want to use hunter IO to find it.
-            print "[*] Automaticly using Hunter IO to determine best Prefix"
-            url = "https://hunter.io/trial/v2/domain-search?offset=0&domain=%s&format=json" % suffix
-            r = requests.get(url)
-            content = json.loads(r.text)
-            if "status" in content:
-                print "[!] Rate limited by Hunter IO trial"
-                url = "https://api.hunter.io/v2/domain-search?domain=%s&api_key=%s" % (suffix, api_key)
-                #print url
-                r = requests.get(url)
-                content = json.loads(r.text)
-                if "status" in content:
-                    print "[!] Rate limited by Hunter IO Key"
-                    continue
-            #print content
-            prefix = content['data']['pattern']
-            print "[!] %s" % prefix
-            if prefix:
-                prefix = prefix.replace("{","").replace("}", "")
-                if prefix == "full" or prefix == "firstlast" or prefix == "firstmlast" or prefix == "flast" or prefix =="first" or prefix == "first.last" or prefix == "fmlast" or prefix == "lastfirst":
-                    print "[+] Found %s prefix" % prefix
-                    break
-                else:
-                    print "[!] Automatic prefix search failed, please insert a manual choice"
-                    continue
+    if args.id!=None:
+        bCompany = True
+        bAuto = False
+        bSpecific = args.id
+        print "Company ID is " + bSpecific
+    else:
+        while True:
+            bCompany = raw_input("[*] Filter by Company? (Y/N): \n")
+            if bCompany.lower() == "y" or bCompany.lower() == "n":
+                break
             else:
-                print "[!] Automatic prefix search failed, please insert a manual choice"
-                continue
-        else:
-            print "[!] Incorrect choice, please select a value from (auto,full,firstlast,firstmlast,flast,first.last,fmlast)"
+                print "[!] Incorrect choice"
 
-    print 
+        if bCompany.lower() == "y":
+            bCompany = True
+        else:
+            bCompany = False
+
+        bAuto = True
+        bSpecific = 0
+        prefix = ""
+        suffix = ""
+
+        print
+
+        if bCompany:
+	        while True:
+	            bSpecific = raw_input("[*] Specify a Company ID (Provide ID or leave blank to automate): \n")
+	            if bSpecific != "":
+	                bAuto = False
+                        if bSpecific != 0:
+	                    try:
+	                        int(bSpecific)
+	                        break
+	                    except:
+	                        print "[!] Incorrect choice, the ID either has to be a number or blank"
+	                
+	                else:
+	                    print "[!] Incorrect choice, the ID either has to be a number or blank"
+	            else:
+	                bAuto = True
+	                break
+
+        print
+
+    if args.domain!=None:
+        suffix = args.domain
+        print "Email suffix/domain is " + suffix
+    else:
+        while True:
+            suffix = raw_input("[*] Enter e-mail domain suffix (eg. contoso.com): \n")
+            suffix = suffix.lower()
+            if "." in suffix:
+                break
+            else:
+                print "[!] Incorrect e-mail? There's no dot"
+
+        print 
+
+    if args.prefix!=None:
+        prefix = args.prefix
+        print "Email prefix format is " + prefix
+    else:
+	while True:
+		prefix = raw_input("[*] Select a prefix for e-mail generation (auto,full,firstlast,firstmlast,flast,first.last,fmlast,lastfirst): \n")
+		prefix = prefix.lower()
+		print
+		if prefix == "full" or prefix == "firstlast" or prefix == "firstmlast" or prefix == "flast" or prefix =="first" or prefix == "first.last" or prefix == "fmlast" or prefix == "lastfirst":
+		    break
+		elif prefix == "auto":
+		    #if auto prefix then we want to use hunter IO to find it.
+		    print "[*] Automaticly using Hunter IO to determine best Prefix"
+		    url = "https://hunter.io/trial/v2/domain-search?offset=0&domain=%s&format=json" % suffix
+		    r = requests.get(url)
+		    content = json.loads(r.text)
+		    if "status" in content:
+		        print "[!] Rate limited by Hunter IO trial"
+		        url = "https://api.hunter.io/v2/domain-search?domain=%s&api_key=%s" % (suffix, api_key)
+		        #print url
+		        r = requests.get(url)
+		        content = json.loads(r.text)
+		        if "status" in content:
+		            print "[!] Rate limited by Hunter IO Key"
+		            continue
+		    #print content
+		    prefix = content['data']['pattern']
+		    print "[!] %s" % prefix
+		    if prefix:
+		        prefix = prefix.replace("{","").replace("}", "")
+		        if prefix == "full" or prefix == "firstlast" or prefix == "firstmlast" or prefix == "flast" or prefix =="first" or prefix == "first.last" or prefix == "fmlast" or prefix == "lastfirst":
+		            print "[+] Found %s prefix" % prefix
+		            break
+		        else:
+		            print "[!] Automatic prefix search failed, please insert a manual choice"
+		            continue
+		    else:
+		        print "[!] Automatic prefix search failed, please insert a manual choice"
+		        continue
+		else:
+		    print "[!] Incorrect choice, please select a value from (auto,full,firstlast,firstmlast,flast,first.last,fmlast)"
+
+        print 
 
 
     
